@@ -1,13 +1,16 @@
 
 import express from 'express'
 import cors from 'cors'
+import 'dotenv/config'
+
 import leadsRouter from './routes/leads.js'
+import { initializeDatabase } from './database/db.js'
 
 const app = express()
-const PORT = 5000
+const PORT = process.env.PORT || 5000
 
 app.use(cors({
-  origin: 'http://localhost:5173'
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
 }))
 
 app.use(express.json())
@@ -18,6 +21,17 @@ app.get('/', (req, res) => {
 
 app.use('/api/leads', leadsRouter)
 
-app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`)
-})
+async function startServer() {
+  try {
+    await initializeDatabase()
+
+    app.listen(PORT, () => {
+      console.log(`Server running at http://localhost:${PORT}`)
+    })
+  } catch (error) {
+    console.error('Failed to start server:', error)
+    process.exit(1)
+  }
+}
+
+startServer()

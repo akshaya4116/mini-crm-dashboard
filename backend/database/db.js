@@ -1,26 +1,31 @@
 
-import Database from 'better-sqlite3'
-import path from 'path'
-import { fileURLToPath } from 'url'
+import { createClient } from '@libsql/client'
+import 'dotenv/config'
 
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
+if (!process.env.TURSO_DATABASE_URL || !process.env.TURSO_AUTH_TOKEN) {
+  throw new Error('Turso database credentials are missing. Check your .env file.')
+}
 
-const db = new Database(path.join(__dirname, 'crm.db'))
+const db = createClient({
+  url: process.env.TURSO_DATABASE_URL,
+  authToken: process.env.TURSO_AUTH_TOKEN,
+})
 
-db.pragma('journal_mode = WAL')
+export async function initializeDatabase() {
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      business TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'New'
+        CHECK(status IN ('New', 'Contacted', 'Converted')),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `)
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS leads (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    business TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'New'
-      CHECK(status IN ('New', 'Contacted', 'Converted')),
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )
-`)
+  console.log('Turso database connected and initialized!')
+}
 
 export default db

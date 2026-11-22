@@ -4,128 +4,162 @@ import db from '../database/db.js'
 
 const router = express.Router()
 
-// GET: Fetch all leads
-router.get('/', (req, res) => {
-  try {
-    const leads = db.prepare(
-      'SELECT * FROM leads ORDER BY id DESC'
-    ).all()
+const validStatuses = ['New', 'Contacted', 'Converted']
 
-    res.json(leads)
+// GET: Retrieve all leads
+router.get('/', async (req, res) => {
+  try {
+    const result = await db.execute(
+      'SELECT * FROM leads ORDER BY id DESC'
+    )
+
+    res.json(result.rows)
   } catch (error) {
+    console.error('Fetch leads error:', error)
     res.status(500).json({ message: 'Failed to fetch leads' })
   }
 })
 
 // POST: Add a new lead
-router.post('/', (req, res) => {
+router.post('/', async (req, res) => {
   try {
     const { name, email, phone, business, status = 'New' } = req.body
 
-    if (!name || !email || !phone || !business) {
+    if (
+      !name?.trim() ||
+      !email?.trim() ||
+      !phone?.trim() ||
+      !business?.trim()
+    ) {
       return res.status(400).json({
-        message: 'All fields are required'
+        message: 'All fields are required',
       })
     }
 
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-    if (!validEmail.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({
-        message: 'Please enter a valid email address'
+        message: 'Please enter a valid email address',
       })
     }
 
-    if (!['New', 'Contacted', 'Converted'].includes(status)) {
+    if (!validStatuses.includes(status)) {
       return res.status(400).json({
-        message: 'Invalid lead status'
+        message: 'Invalid lead status',
       })
     }
 
-    const result = db.prepare(`
-      INSERT INTO leads (name, email, phone, business, status)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(name.trim(), email.trim(), phone.trim(), business.trim(), status)
+    const result = await db.execute({
+      sql: `
+        INSERT INTO leads (name, email, phone, business, status)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      args: [
+        name.trim(),
+        email.trim(),
+        phone.trim(),
+        business.trim(),
+        status,
+      ],
+    })
 
-    const newLead = db.prepare(
-      'SELECT * FROM leads WHERE id = ?'
-    ).get(result.lastInsertRowid)
+    const newLead = await db.execute({
+      sql: 'SELECT * FROM leads WHERE id = ?',
+      args: [result.lastInsertRowid],
+    })
 
-    res.status(201).json(newLead)
+    res.status(201).json(newLead.rows[0])
   } catch (error) {
+    console.error('Add lead error:', error)
     res.status(500).json({ message: 'Failed to add lead' })
   }
 })
 
 // PUT: Update an existing lead
-router.put('/:id', (req, res) => {
+router.put('/:id', async (req, res) => {
   try {
-    const { name, email, phone, business, status } = req.body
     const id = Number(req.params.id)
+    const { name, email, phone, business, status } = req.body
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ message: 'Invalid lead ID' })
     }
 
-    if (!name || !email || !phone || !business || !status) {
+    if (
+      !name?.trim() ||
+      !email?.trim() ||
+      !phone?.trim() ||
+      !business?.trim()
+    ) {
       return res.status(400).json({
-        message: 'All fields are required'
+        message: 'All fields are required',
       })
     }
 
-    const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-    if (!validEmail.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       return res.status(400).json({
-        message: 'Please enter a valid email address'
+        message: 'Please enter a valid email address',
       })
     }
 
-    if (!['New', 'Contacted', 'Converted'].includes(status)) {
+    if (!validStatuses.includes(status)) {
       return res.status(400).json({
-        message: 'Invalid lead status'
+        message: 'Invalid lead status',
       })
     }
 
-    const result = db.prepare(`
-      UPDATE leads
-      SET name = ?, email = ?, phone = ?, business = ?, status = ?
-      WHERE id = ?
-    `).run(name.trim(), email.trim(), phone.trim(), business.trim(), status, id)
+    const result = await db.execute({
+      sql: `
+        UPDATE leads
+        SET name = ?, email = ?, phone = ?, business = ?, status = ?
+        WHERE id = ?
+      `,
+      args: [
+        name.trim(),
+        email.trim(),
+        phone.trim(),
+        business.trim(),
+        status,
+        id,
+      ],
+    })
 
-    if (result.changes === 0) {
+    if (Number(result.rowsAffected) === 0) {
       return res.status(404).json({ message: 'Lead not found' })
     }
 
-    const updatedLead = db.prepare(
-      'SELECT * FROM leads WHERE id = ?'
-    ).get(id)
+    const updatedLead = await db.execute({
+      sql: 'SELECT * FROM leads WHERE id = ?',
+      args: [id],
+    })
 
-    res.json(updatedLead)
+    res.json(updatedLead.rows[0])
   } catch (error) {
+    console.error('Update lead error:', error)
     res.status(500).json({ message: 'Failed to update lead' })
   }
 })
 
-// DELETE: Remove a lead
-router.delete('/:id', (req, res) => {
+// DELETE: Delete a lead
+router.delete('/:id', async (req, res) => {
   try {
     const id = Number(req.params.id)
 
-    if (!Number.isInteger(id) || id <= 0) {
+    if (!Number.isSafeInteger(id) || id <= 0) {
       return res.status(400).json({ message: 'Invalid lead ID' })
     }
 
-    const result = db.prepare(
-      'DELETE FROM leads WHERE id = ?'
-    ).run(id)
+    const result = await db.execute({
+      sql: 'DELETE FROM leads WHERE id = ?',
+      args: [id],
+    })
 
-    if (result.changes === 0) {
+    if (Number(result.rowsAffected) === 0) {
       return res.status(404).json({ message: 'Lead not found' })
     }
 
     res.json({ message: 'Lead deleted successfully' })
   } catch (error) {
+    console.error('Delete lead error:', error)
     res.status(500).json({ message: 'Failed to delete lead' })
   }
 })
