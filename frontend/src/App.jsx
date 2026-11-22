@@ -38,6 +38,7 @@ function App() {
   const [formData, setFormData] = useState(emptyForm)
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState('All')
+  const [activePage, setActivePage] = useState('Dashboard')
 
   // Fetch leads from backend
   useEffect(() => {
@@ -161,6 +162,37 @@ function App() {
     }
   }
 
+  // Update lead status
+  async function handleStatusChange(lead, newStatus) {
+    try {
+      setError('')
+
+      const updatedLead = await updateLead(lead.id, {
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        business: lead.business,
+        status: newStatus,
+      })
+
+      setLeads(prev =>
+        prev.map(item =>
+          item.id === lead.id ? updatedLead : item
+        )
+      )
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // Navigation
+  function handleNavigation(page) {
+    setActivePage(page)
+    setShowForm(false)
+    setEditingId(null)
+    setError('')
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 md:flex">
 
@@ -171,17 +203,32 @@ function App() {
           Mini<span className="text-blue-400">CRM</span>
         </h1>
 
+        {/* Navigation */}
         <nav className="space-y-3">
 
-          <div className="flex items-center gap-3 rounded-lg bg-blue-600 p-3">
+          <button
+            onClick={() => handleNavigation('Dashboard')}
+            className={`flex w-full items-center gap-3 rounded-lg p-3 transition ${
+              activePage === 'Dashboard'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
             <LayoutDashboard size={20} />
             Dashboard
-          </div>
+          </button>
 
-          <div className="flex items-center gap-3 rounded-lg p-3 text-slate-400">
+          <button
+            onClick={() => handleNavigation('Leads')}
+            className={`flex w-full items-center gap-3 rounded-lg p-3 transition ${
+              activePage === 'Leads'
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
             <Users size={20} />
             Leads
-          </div>
+          </button>
 
         </nav>
 
@@ -199,45 +246,53 @@ function App() {
 
           <div>
             <h2 className="text-2xl font-bold">
-              Dashboard
+              {activePage}
             </h2>
 
             <p className="mt-1 text-sm text-slate-500">
-              Welcome back! Here's your business overview.
+              {activePage === 'Dashboard'
+                ? "Welcome back! Here's your business overview."
+                : 'Manage and track all your leads.'}
             </p>
           </div>
 
-          <button className="rounded-full bg-white p-3 shadow-sm">
+          <button
+            type="button"
+            className="rounded-full bg-white p-3 shadow-sm"
+            aria-label="Notifications"
+          >
             <Bell size={20} />
           </button>
 
         </header>
 
         {/* Dashboard Statistics */}
-        <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {activePage === 'Dashboard' && (
+          <section className="mb-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
 
-          <StatCard
-            title="Total Leads"
-            value={totalLeads}
-            icon={<Users />}
-            color="bg-blue-100 text-blue-600"
-          />
+            <StatCard
+              title="Total Leads"
+              value={totalLeads}
+              icon={<Users />}
+              color="bg-blue-100 text-blue-600"
+            />
 
-          <StatCard
-            title="New Leads"
-            value={newLeads}
-            icon={<UserPlus />}
-            color="bg-purple-100 text-purple-600"
-          />
+            <StatCard
+              title="New Leads"
+              value={newLeads}
+              icon={<UserPlus />}
+              color="bg-purple-100 text-purple-600"
+            />
 
-          <StatCard
-            title="Converted"
-            value={convertedLeads}
-            icon={<UserCheck />}
-            color="bg-green-100 text-green-600"
-          />
+            <StatCard
+              title="Converted"
+              value={convertedLeads}
+              icon={<UserCheck />}
+              color="bg-green-100 text-green-600"
+            />
 
-        </section>
+          </section>
+        )}
 
         {/* Add / Edit Form */}
         {showForm && (
@@ -358,11 +413,13 @@ function App() {
 
             <div>
               <h3 className="text-lg font-bold">
-                Recent Leads
+                {activePage === 'Dashboard' ? 'Recent Leads' : 'All Leads'}
               </h3>
 
               <p className="text-sm text-slate-500">
-                Manage and track your enquiries.
+                {activePage === 'Dashboard'
+                  ? 'Manage and track your enquiries.'
+                  : 'View, search, filter and manage all your leads.'}
               </p>
             </div>
 
@@ -472,44 +529,24 @@ function App() {
                       </td>
 
                       <td className="p-3">
-  <select
-    value={lead.status}
-    onChange={async (e) => {
-      const newStatus = e.target.value
-
-      try {
-        setError('')
-
-        const updatedLead = await updateLead(lead.id, {
-          name: lead.name,
-          email: lead.email,
-          phone: lead.phone,
-          business: lead.business,
-          status: newStatus,
-        })
-
-        setLeads(prev =>
-          prev.map(item =>
-            item.id === lead.id ? updatedLead : item
-          )
-        )
-      } catch (err) {
-        setError(err.message)
-      }
-    }}
-    className={`rounded-lg border px-3 py-2 text-xs font-medium ${
-      lead.status === 'Converted'
-        ? 'border-green-200 bg-green-50 text-green-700'
-        : lead.status === 'New'
-        ? 'border-blue-200 bg-blue-50 text-blue-700'
-        : 'border-amber-200 bg-amber-50 text-amber-700'
-    }`}
-  >
-    <option value="New">New</option>
-    <option value="Contacted">Contacted</option>
-    <option value="Converted">Converted</option>
-  </select>
-</td>
+                        <select
+                          value={lead.status}
+                          onChange={e =>
+                            handleStatusChange(lead, e.target.value)
+                          }
+                          className={`rounded-lg border px-3 py-2 text-xs font-medium ${
+                            lead.status === 'Converted'
+                              ? 'border-green-200 bg-green-50 text-green-700'
+                              : lead.status === 'New'
+                                ? 'border-blue-200 bg-blue-50 text-blue-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          <option value="New">New</option>
+                          <option value="Contacted">Contacted</option>
+                          <option value="Converted">Converted</option>
+                        </select>
+                      </td>
 
                       <td className="p-3">
 
@@ -557,7 +594,6 @@ function App() {
 
 // Statistics Card Component
 function StatCard({ title, value, icon, color }) {
-
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
 
