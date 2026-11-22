@@ -1,6 +1,5 @@
 
-const API_URL = 'http://localhost:5000/api/leads'
-
+const API_URL = 'https://mini-crm-dashboard-13p9.onrender.com/api/leads'
 export async function getLeads() {
   const response = await fetch(API_URL)
 
